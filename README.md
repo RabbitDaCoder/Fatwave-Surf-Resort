@@ -189,5 +189,5 @@ MIT
 ---
 
 <div align="center">
-  Built with ❤️ by [YourName]
+  Built with ❤️ by RabbitDaCoder
 </div>
