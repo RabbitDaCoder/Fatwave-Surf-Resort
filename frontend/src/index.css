@@ -1,0 +1,260 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for Fatwave Surf Resort */
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-body text-charcoal bg-white;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading font-bold;
+  }
+}
+
+@layer components {
+  /* Button styles */
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg font-nav font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+
+  .btn-primary {
+    @apply bg-sunset text-white hover:bg-sunset-dark shadow-button hover:shadow-lg transform hover:-translate-y-0.5;
+  }
+
+  .btn-secondary {
+    @apply bg-ocean text-white hover:bg-ocean-dark;
+  }
+
+  .btn-outline {
+    @apply border-2 border-ocean text-ocean hover:bg-ocean hover:text-white;
+  }
+
+  .btn-white {
+    @apply bg-white text-ocean hover:bg-sand;
+  }
+
+  .btn-lg {
+    @apply px-8 py-4 text-lg;
+  }
+
+  .btn-sm {
+    @apply px-4 py-2 text-sm;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-white rounded-2xl shadow-card overflow-hidden transition-all duration-300 hover:shadow-card-hover;
+  }
+
+  .card-hover {
+    @apply hover:-translate-y-1 hover:shadow-card-hover;
+  }
+
+  /* Input styles */
+  .input {
+    @apply w-full px-4 py-3 border border-gray-200 rounded-lg font-body text-charcoal placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ocean focus:border-transparent transition-all duration-200;
+  }
+
+  .input-error {
+    @apply border-red-500 focus:ring-red-500;
+  }
+
+  /* Label styles */
+  .label {
+    @apply block text-sm font-medium text-charcoal mb-2;
+  }
+
+  /* Section styles */
+  .section {
+    @apply py-16 md:py-24;
+  }
+
+  .section-title {
+    @apply text-3xl md:text-4xl font-heading font-bold text-ocean mb-4;
+  }
+
+  .section-subtitle {
+    @apply text-lg text-gray-600 max-w-2xl mx-auto;
+  }
+
+  /* Container */
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Badge styles */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .badge-sunset {
+    @apply bg-sunset/10 text-sunset;
+  }
+
+  .badge-ocean {
+    @apply bg-ocean/10 text-ocean;
+  }
+
+  .badge-sunny {
+    @apply bg-sunny/10 text-sunny-dark;
+  }
+
+  .badge-success {
+    @apply bg-green-100 text-green-700;
+  }
+
+  .badge-warning {
+    @apply bg-amber-100 text-amber-700;
+  }
+
+  .badge-error {
+    @apply bg-red-100 text-red-700;
+  }
+
+  /* Price styles */
+  .price-tag {
+    @apply absolute top-4 right-4 bg-ocean text-white px-4 py-2 rounded-lg font-heading font-bold text-xl shadow-lg;
+  }
+
+  .price-discount {
+    @apply line-through text-gray-400 text-sm;
+  }
+
+  /* Amenity icon */
+  .amenity-icon {
+    @apply flex items-center gap-2 text-gray-600 text-sm;
+  }
+
+  /* Overlay styles */
+  .overlay-dark {
+    @apply absolute inset-0 bg-black/40;
+  }
+
+  .overlay-gradient {
+    @apply absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent;
+  }
+
+  /* Loading spinner */
+  .spinner {
+    @apply animate-spin rounded-full border-4 border-ocean border-t-transparent;
+  }
+
+  /* Navigation link */
+  .nav-link {
+    @apply font-nav font-medium text-charcoal hover:text-ocean transition-colors duration-200 relative;
+  }
+
+  .nav-link-active {
+    @apply text-ocean;
+  }
+
+  .nav-link::after {
+    @apply content-[''] absolute bottom-0 left-0 w-0 h-0.5 bg-sunset transition-all duration-300;
+  }
+
+  .nav-link:hover::after {
+    @apply w-full;
+  }
+}
+
+@layer utilities {
+  /* Text gradient */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-tropical;
+  }
+
+  /* Scroll snap */
+  .scroll-snap-x {
+    scroll-snap-type: x mandatory;
+  }
+
+  .scroll-snap-item {
+    scroll-snap-align: start;
+  }
+
+  /* Hide scrollbar */
+  .hide-scrollbar::-webkit-scrollbar,
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar,
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Date picker customization */
+.react-datepicker {
+  @apply font-body border-0 shadow-card-hover rounded-xl !important;
+}
+
+.react-datepicker__header {
+  @apply bg-ocean border-0 rounded-t-xl !important;
+}
+
+.react-datepicker__current-month {
+  @apply text-white font-heading font-bold !important;
+}
+
+.react-datepicker__day-name {
+  @apply text-white/80 !important;
+}
+
+.react-datepicker__day {
+  @apply hover:bg-sunset hover:text-white rounded-full transition-colors !important;
+}
+
+.react-datepicker__day--selected {
+  @apply bg-sunset text-white !important;
+}
+
+.react-datepicker__day--in-range {
+  @apply bg-sunset/20 text-sunset !important;
+}
+
+.react-datepicker__day--range-start,
+.react-datepicker__day--range-end {
+  @apply bg-sunset text-white !important;
+}
+
+.react-datepicker__day--keyboard-selected {
+  @apply bg-ocean text-white !important;
+}
+
+/* Animation classes */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.6s ease-out,
+    transform 0.6s ease-out;
+}
+
+.animate-on-scroll.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Wave animation */
+.wave-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%231F4E79' fill-opacity='0.1' d='M0,160L48,176C96,192,192,224,288,213.3C384,203,480,149,576,138.7C672,128,768,160,864,181.3C960,203,1056,213,1152,197.3C1248,181,1344,139,1392,117.3L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: bottom;
+  background-size: cover;
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Fatwave Surf Resort",
+  "short_name": "Fatwave",
+  "description": "Where the waves meet paradise - Surf resort in La Union, Philippines",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf8f5",
+  "theme_color": "#2c2a26",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

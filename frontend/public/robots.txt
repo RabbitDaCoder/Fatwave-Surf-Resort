@@ -1,0 +1,12 @@
+# Robots.txt for Fatwave Surf Resort
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://fatwavesurfresort.com/sitemap.xml
+
+# Disallow admin pages
+Disallow: /owner
+Disallow: /owner/*
+Disallow: /admin
+Disallow: /admin/*
