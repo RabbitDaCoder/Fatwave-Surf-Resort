@@ -19,9 +19,6 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
-// Security middleware
-app.use(helmet());
-
 // CORS configuration - allow both www and non-www
 const allowedOrigins = [
   process.env.FRONTEND_URL || "http://localhost:5173",
@@ -55,6 +52,13 @@ app.use(
       }
     },
     credentials: true,
+  }),
+);
+
+// Security middleware (after CORS so headers are not stripped)
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
   }),
 );
 
