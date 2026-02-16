@@ -1,28 +1,77 @@
-import puppeteer from "puppeteer";
+import PDFDocument from "pdfkit";
 import { formatDate, formatCurrency } from "../utils/helpers.js";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Get logo as base64 (fallback to wave emoji if file not found)
-const getLogoBase64 = () => {
-  try {
-    const logoPath = path.resolve(__dirname, "../../frontend/public/logo.png");
-    if (fs.existsSync(logoPath)) {
-      const logoBuffer = fs.readFileSync(logoPath);
-      return `data:image/png;base64,${logoBuffer.toString("base64")}`;
-    }
-  } catch (e) {
-    console.log("Logo file not found, using text fallback");
-  }
-  return null;
+// Brand colors
+const COLORS = {
+  deepBlue: "#1F4E79",
+  mediumBlue: "#2D6BA8",
+  orange: "#F76C1E",
+  gold: "#F7B733",
+  dark: "#333333",
+  gray: "#666666",
+  lightGray: "#888888",
+  cream: "#F4EDE3",
+  white: "#FFFFFF",
+  green: "#2e7d32",
 };
 
 /**
- * Generate PDF receipt with Fatwave branding
+ * Helper: draw a filled rectangle
+ */
+const drawRect = (doc, x, y, w, h, color) => {
+  doc.save().rect(x, y, w, h).fill(color).restore();
+};
+
+/**
+ * Helper: draw a detail row (label + value) in a 2-column grid
+ */
+const drawDetailItem = (doc, x, y, label, value, options = {}) => {
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor(COLORS.lightGray)
+    .text(label.toUpperCase(), x, y);
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(11)
+    .fillColor(options.color || COLORS.dark)
+    .text(value, x, y + 12);
+  return y + 30;
+};
+
+/**
+ * Helper: draw a price row
+ */
+const drawPriceRow = (doc, y, label, value, options = {}) => {
+  const leftX = 60;
+  const rightX = 400;
+  const color = options.color || COLORS.gray;
+
+  doc.font("Helvetica").fontSize(10).fillColor(color).text(label, leftX, y);
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .fillColor(options.valueColor || COLORS.dark)
+    .text(value, rightX, y, { width: 130, align: "right" });
+
+  // dashed line
+  if (!options.noDash) {
+    doc
+      .save()
+      .moveTo(leftX, y + 18)
+      .lineTo(530, y + 18)
+      .dash(3, { space: 3 })
+      .strokeColor("#dddddd")
+      .stroke()
+      .undash()
+      .restore();
+  }
+
+  return y + 26;
+};
+
+/**
+ * Generate PDF receipt with Fatwave branding using PDFKit
  */
 export const generateReceiptPDF = async (booking, room) => {
   const pricePerNight = room.currentPrice || room.pricePerNight;
@@ -31,377 +80,350 @@ export const generateReceiptPDF = async (booking, room) => {
     new Date() >= new Date(room.seasonalDiscount.startDate) &&
     new Date() <= new Date(room.seasonalDiscount.endDate);
 
-  const logoBase64 = getLogoBase64();
-  const logoHtml = logoBase64
-    ? `<img src="${logoBase64}" alt="Fatwave Surf Resort" style="max-height: 80px; margin-bottom: 10px;" />`
-    : `<div class="logo">🌊 Fatwave Surf Resort</div>`;
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: "A4",
+        margins: { top: 20, bottom: 20, left: 20, right: 20 },
+      });
 
-  const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Receipt - ${booking.bookingReference}</title>
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&family=Pacifico&display=swap');
-        
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        
-        body {
-          font-family: 'Open Sans', sans-serif;
-          color: #333333;
-          background-color: #FFFFFF;
-          line-height: 1.6;
-        }
-        
-        .receipt {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 40px;
-        }
-        
-        .header {
-          background: linear-gradient(135deg, #1F4E79 0%, #2D6BA8 100%);
-          padding: 40px;
-          text-align: center;
-          border-radius: 10px 10px 0 0;
-        }
-        
-        .logo {
-          font-family: 'Pacifico', cursive;
-          font-size: 36px;
-          color: #FFFFFF;
-          margin-bottom: 5px;
-        }
-        
-        .tagline {
-          color: #F7B733;
-          font-size: 14px;
-          letter-spacing: 2px;
-        }
-        
-        .receipt-title {
-          background-color: #F76C1E;
-          color: #FFFFFF;
-          text-align: center;
-          padding: 15px;
-          font-family: 'Montserrat', sans-serif;
-          font-weight: 700;
-          font-size: 18px;
-          letter-spacing: 1px;
-        }
-        
-        .content {
-          background-color: #FFFFFF;
-          padding: 40px;
-          border: 1px solid #eee;
-        }
-        
-        .confirmation-box {
-          background-color: #F4EDE3;
-          border-left: 4px solid #F76C1E;
-          padding: 20px;
-          margin-bottom: 30px;
-        }
-        
-        .confirmation-label {
-          color: #666;
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-        
-        .confirmation-number {
-          font-family: 'Montserrat', sans-serif;
-          font-size: 28px;
-          font-weight: 700;
-          color: #1F4E79;
-        }
-        
-        .section {
-          margin-bottom: 30px;
-        }
-        
-        .section-title {
-          font-family: 'Montserrat', sans-serif;
-          font-size: 16px;
-          font-weight: 700;
-          color: #1F4E79;
-          border-bottom: 2px solid #F7B733;
-          padding-bottom: 10px;
-          margin-bottom: 15px;
-        }
-        
-        .detail-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 15px;
-        }
-        
-        .detail-item {
-          display: flex;
-          flex-direction: column;
-        }
-        
-        .detail-label {
-          font-size: 12px;
-          color: #888;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-        
-        .detail-value {
-          font-size: 16px;
-          color: #333;
-          font-weight: 600;
-        }
-        
-        .price-breakdown {
-          background-color: #F4EDE3;
-          padding: 25px;
-          border-radius: 8px;
-        }
-        
-        .price-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 10px 0;
-          border-bottom: 1px dashed #ddd;
-        }
-        
-        .price-row:last-child {
-          border-bottom: none;
-        }
-        
-        .price-label {
-          color: #666;
-        }
-        
-        .price-value {
-          font-weight: 600;
-          color: #333;
-        }
-        
-        .discount-row {
-          color: #2e7d32;
-        }
-        
-        .total-row {
-          background-color: #1F4E79;
-          color: #FFFFFF;
-          padding: 20px;
-          display: flex;
-          justify-content: space-between;
-          font-family: 'Montserrat', sans-serif;
-          font-weight: 700;
-          font-size: 20px;
-          border-radius: 8px;
-          margin-top: 10px;
-        }
-        
-        .footer {
-          background-color: #333333;
-          color: #FFFFFF;
-          padding: 30px;
-          text-align: center;
-          border-radius: 0 0 10px 10px;
-        }
-        
-        .footer-text {
-          font-size: 14px;
-          margin-bottom: 10px;
-        }
-        
-        .footer-contact {
-          display: flex;
-          justify-content: center;
-          gap: 30px;
-          margin-top: 20px;
-          font-size: 12px;
-        }
-        
-        .footer-contact span {
-          color: #F7B733;
-        }
-        
-        .orange-line {
-          height: 4px;
-          background: linear-gradient(90deg, #F76C1E 0%, #F7B733 100%);
-        }
-        
-        .special-requests {
-          background-color: #FFF8E1;
-          border-left: 4px solid #F7B733;
-          padding: 15px;
-          margin-top: 20px;
-          font-style: italic;
-          color: #666;
-        }
-        
-        .generated-date {
-          text-align: center;
-          font-size: 12px;
-          color: #888;
-          margin-top: 20px;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="receipt">
-        <div class="header">
-          ${logoHtml}
-          <div class="tagline">WHERE THE WAVES MEET PARADISE</div>
-        </div>
-        
-        <div class="orange-line"></div>
-        
-        <div class="receipt-title">RESERVATION RECEIPT</div>
-        
-        <div class="content">
-          <div class="confirmation-box">
-            <div class="confirmation-label">Confirmation Number</div>
-            <div class="confirmation-number">${booking.bookingReference}</div>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Guest Information</div>
-            <div class="detail-grid">
-              <div class="detail-item">
-                <span class="detail-label">Name</span>
-                <span class="detail-value">${booking.guestName}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Email</span>
-                <span class="detail-value">${booking.guestEmail}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Number of Guests</span>
-                <span class="detail-value">${booking.guests}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Accommodation Details</div>
-            <div class="detail-grid">
-              <div class="detail-item">
-                <span class="detail-label">Room Type</span>
-                <span class="detail-value">${room.name}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Category</span>
-                <span class="detail-value" style="text-transform: capitalize;">${room.category.replace("-", " ")}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Check-in Date</span>
-                <span class="detail-value">${formatDate(booking.checkIn)}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Check-out Date</span>
-                <span class="detail-value">${formatDate(booking.checkOut)}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Number of Nights</span>
-                <span class="detail-value">${booking.nights}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Booking Status</span>
-                <span class="detail-value" style="text-transform: capitalize; color: ${booking.paymentStatus === "confirmed" ? "#2e7d32" : "#F76C1E"};">${booking.paymentStatus === "awaiting_payment" ? "Awaiting Payment" : booking.paymentStatus}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Price Breakdown</div>
-            <div class="price-breakdown">
-              <div class="price-row">
-                <span class="price-label">Room Rate (per night)</span>
-                <span class="price-value">${formatCurrency(room.pricePerNight)}</span>
-              </div>
-              ${
-                hasDiscount
-                  ? `
-                <div class="price-row discount-row">
-                  <span class="price-label">Seasonal Discount (${room.seasonalDiscount.percentage}%)</span>
-                  <span class="price-value">-${formatCurrency(((room.pricePerNight * room.seasonalDiscount.percentage) / 100) * booking.nights)}</span>
-                </div>
-              `
-                  : ""
-              }
-              <div class="price-row">
-                <span class="price-label">Number of Nights</span>
-                <span class="price-value">× ${booking.nights}</span>
-              </div>
-              <div class="price-row">
-                <span class="price-label">Subtotal</span>
-                <span class="price-value">${formatCurrency(booking.totalPrice)}</span>
-              </div>
-            </div>
-            <div class="total-row">
-              <span>TOTAL AMOUNT</span>
-              <span>${formatCurrency(booking.totalPrice)}</span>
-            </div>
-          </div>
-          
-          ${
-            booking.specialRequests
-              ? `
-            <div class="special-requests">
-              <strong>Special Requests:</strong> ${booking.specialRequests}
-            </div>
-          `
-              : ""
-          }
-          
-          <div class="generated-date">
-            Receipt generated on ${formatDate(new Date())}
-          </div>
-        </div>
-        
-        <div class="footer">
-          <div class="footer-text">
-            Thank you for choosing Fatwave Surf Resort!
-          </div>
-          <div class="footer-text">
-            We look forward to making your stay unforgettable. 🏄🌴
-          </div>
-          <div class="footer-contact">
-            <div>📍 <span>123 Beach Road, Tropical Paradise</span></div>
-            <div>✉️ <span>info@fatwavesurfresort.com</span></div>
-          </div>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+      const chunks = [];
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
 
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      const pageWidth = doc.page.width - 40; // 595.28 - 40 = ~555
+      const leftMargin = 20;
+
+      // ── HEADER (deep blue banner) ──
+      drawRect(doc, leftMargin, 20, pageWidth, 80, COLORS.deepBlue);
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(26)
+        .fillColor(COLORS.white)
+        .text("Fatwave Surf Resort", leftMargin, 38, {
+          width: pageWidth,
+          align: "center",
+        });
+      doc
+        .font("Helvetica")
+        .fontSize(9)
+        .fillColor(COLORS.gold)
+        .text("WHERE THE WAVES MEET PARADISE", leftMargin, 70, {
+          width: pageWidth,
+          align: "center",
+          characterSpacing: 2,
+        });
+
+      // ── Orange gradient line ──
+      drawRect(doc, leftMargin, 100, pageWidth, 4, COLORS.orange);
+
+      // ── RESERVATION RECEIPT title bar ──
+      drawRect(doc, leftMargin, 104, pageWidth, 35, COLORS.orange);
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(14)
+        .fillColor(COLORS.white)
+        .text("RESERVATION RECEIPT", leftMargin, 114, {
+          width: pageWidth,
+          align: "center",
+          characterSpacing: 1,
+        });
+
+      // ── CONTENT AREA ──
+      let y = 155;
+
+      // Confirmation box
+      drawRect(doc, 40, y, pageWidth - 40, 50, COLORS.cream);
+      drawRect(doc, 40, y, 4, 50, COLORS.orange);
+      doc
+        .font("Helvetica")
+        .fontSize(8)
+        .fillColor(COLORS.gray)
+        .text("CONFIRMATION NUMBER", 55, y + 10, { characterSpacing: 1 });
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(20)
+        .fillColor(COLORS.deepBlue)
+        .text(booking.bookingReference, 55, y + 24);
+
+      y += 70;
+
+      // ── Guest Information Section ──
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(12)
+        .fillColor(COLORS.deepBlue)
+        .text("Guest Information", 40, y);
+      y += 16;
+      doc
+        .save()
+        .moveTo(40, y)
+        .lineTo(530, y)
+        .strokeColor(COLORS.gold)
+        .lineWidth(2)
+        .stroke()
+        .restore();
+      y += 12;
+
+      const col1 = 40;
+      const col2 = 290;
+
+      drawDetailItem(doc, col1, y, "Name", booking.guestName);
+      drawDetailItem(doc, col2, y, "Email", booking.guestEmail);
+      y += 32;
+      drawDetailItem(doc, col1, y, "Number of Guests", String(booking.guests));
+      y += 40;
+
+      // ── Accommodation Details Section ──
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(12)
+        .fillColor(COLORS.deepBlue)
+        .text("Accommodation Details", 40, y);
+      y += 16;
+      doc
+        .save()
+        .moveTo(40, y)
+        .lineTo(530, y)
+        .strokeColor(COLORS.gold)
+        .lineWidth(2)
+        .stroke()
+        .restore();
+      y += 12;
+
+      drawDetailItem(doc, col1, y, "Room Type", room.name);
+      drawDetailItem(
+        doc,
+        col2,
+        y,
+        "Category",
+        room.category
+          .replace("-", " ")
+          .replace(/\b\w/g, (l) => l.toUpperCase()),
+      );
+      y += 32;
+
+      drawDetailItem(
+        doc,
+        col1,
+        y,
+        "Check-in Date",
+        formatDate(booking.checkIn),
+      );
+      drawDetailItem(
+        doc,
+        col2,
+        y,
+        "Check-out Date",
+        formatDate(booking.checkOut),
+      );
+      y += 32;
+
+      drawDetailItem(doc, col1, y, "Number of Nights", String(booking.nights));
+
+      const statusLabel =
+        booking.paymentStatus === "awaiting_payment"
+          ? "Awaiting Payment"
+          : booking.paymentStatus.replace(/\b\w/g, (l) => l.toUpperCase());
+      const statusColor =
+        booking.paymentStatus === "confirmed" ? COLORS.green : COLORS.orange;
+      drawDetailItem(doc, col2, y, "Booking Status", statusLabel, {
+        color: statusColor,
+      });
+      y += 45;
+
+      // ── Price Breakdown Section ──
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(12)
+        .fillColor(COLORS.deepBlue)
+        .text("Price Breakdown", 40, y);
+      y += 16;
+      doc
+        .save()
+        .moveTo(40, y)
+        .lineTo(530, y)
+        .strokeColor(COLORS.gold)
+        .lineWidth(2)
+        .stroke()
+        .restore();
+      y += 12;
+
+      // Cream background for price breakdown
+      const priceBoxTop = y;
+      let priceY = y + 12;
+
+      priceY = drawPriceRow(
+        doc,
+        priceY,
+        "Room Rate (per night)",
+        formatCurrency(room.pricePerNight),
+      );
+
+      if (hasDiscount) {
+        priceY = drawPriceRow(
+          doc,
+          priceY,
+          `Seasonal Discount (${room.seasonalDiscount.percentage}%)`,
+          `-${formatCurrency(
+            ((room.pricePerNight * room.seasonalDiscount.percentage) / 100) *
+              booking.nights,
+          )}`,
+          { color: COLORS.green, valueColor: COLORS.green },
+        );
+      }
+
+      priceY = drawPriceRow(
+        doc,
+        priceY,
+        "Number of Nights",
+        `x ${booking.nights}`,
+      );
+      priceY = drawPriceRow(
+        doc,
+        priceY,
+        "Subtotal",
+        formatCurrency(booking.totalPrice),
+        { noDash: true },
+      );
+
+      // Draw cream background behind price rows
+      const priceBoxHeight = priceY - priceBoxTop + 8;
+      // Re-draw background behind (we draw it first by moving content)
+      // Since PDFKit draws in order, we'll just add the background rect behind
+      drawRect(
+        doc,
+        40,
+        priceBoxTop,
+        pageWidth - 40,
+        priceBoxHeight,
+        COLORS.cream,
+      );
+
+      // Re-draw price rows on top of background
+      priceY = priceBoxTop + 12;
+      priceY = drawPriceRow(
+        doc,
+        priceY,
+        "Room Rate (per night)",
+        formatCurrency(room.pricePerNight),
+      );
+
+      if (hasDiscount) {
+        priceY = drawPriceRow(
+          doc,
+          priceY,
+          `Seasonal Discount (${room.seasonalDiscount.percentage}%)`,
+          `-${formatCurrency(
+            ((room.pricePerNight * room.seasonalDiscount.percentage) / 100) *
+              booking.nights,
+          )}`,
+          { color: COLORS.green, valueColor: COLORS.green },
+        );
+      }
+
+      priceY = drawPriceRow(
+        doc,
+        priceY,
+        "Number of Nights",
+        `x ${booking.nights}`,
+      );
+      priceY = drawPriceRow(
+        doc,
+        priceY,
+        "Subtotal",
+        formatCurrency(booking.totalPrice),
+        { noDash: true },
+      );
+
+      y = priceY + 10;
+
+      // Total row (deep blue box)
+      drawRect(doc, 40, y, pageWidth - 40, 40, COLORS.deepBlue);
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(14)
+        .fillColor(COLORS.white)
+        .text("TOTAL AMOUNT", 60, y + 12);
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(14)
+        .fillColor(COLORS.white)
+        .text(formatCurrency(booking.totalPrice), 400, y + 12, {
+          width: 130,
+          align: "right",
+        });
+
+      y += 55;
+
+      // ── Special Requests ──
+      if (booking.specialRequests) {
+        drawRect(doc, 40, y, pageWidth - 40, 40, "#FFF8E1");
+        drawRect(doc, 40, y, 4, 40, COLORS.gold);
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(9)
+          .fillColor(COLORS.gray)
+          .text("Special Requests:", 55, y + 8);
+        doc
+          .font("Helvetica-Oblique")
+          .fontSize(9)
+          .fillColor(COLORS.gray)
+          .text(booking.specialRequests, 55, y + 22, { width: pageWidth - 80 });
+        y += 50;
+      }
+
+      // Generated date
+      doc
+        .font("Helvetica")
+        .fontSize(8)
+        .fillColor(COLORS.lightGray)
+        .text(`Receipt generated on ${formatDate(new Date())}`, 40, y, {
+          width: pageWidth - 40,
+          align: "center",
+        });
+
+      y += 30;
+
+      // ── FOOTER ──
+      drawRect(doc, leftMargin, y, pageWidth, 70, COLORS.dark);
+      doc
+        .font("Helvetica")
+        .fontSize(10)
+        .fillColor(COLORS.white)
+        .text(
+          "Thank you for choosing Fatwave Surf Resort!",
+          leftMargin,
+          y + 12,
+          { width: pageWidth, align: "center" },
+        );
+      doc
+        .font("Helvetica")
+        .fontSize(10)
+        .fillColor(COLORS.white)
+        .text(
+          "We look forward to making your stay unforgettable.",
+          leftMargin,
+          y + 28,
+          { width: pageWidth, align: "center" },
+        );
+      doc
+        .font("Helvetica")
+        .fontSize(8)
+        .fillColor(COLORS.gold)
+        .text(
+          "123 Beach Road, Tropical Paradise  |  info@fatwavesurfresort.com",
+          leftMargin,
+          y + 48,
+          { width: pageWidth, align: "center" },
+        );
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
   });
-
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: "networkidle0" });
-
-  const pdfBuffer = await page.pdf({
-    format: "A4",
-    printBackground: true,
-    margin: {
-      top: "20px",
-      bottom: "20px",
-      left: "20px",
-      right: "20px",
-    },
-  });
-
-  await browser.close();
-
-  return pdfBuffer;
 };
 
 export default { generateReceiptPDF };
